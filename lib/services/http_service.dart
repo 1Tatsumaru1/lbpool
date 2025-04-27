@@ -126,7 +126,7 @@ class HttpService {
       if (response.statusCode != 200) return null;
       int? payload = _parseBody(response);
       if (payload == null) return null;
-      if (payload > 0 && payload < 5) {
+      if (payload.toString().isNotEmpty && payload.toString().length < 5) {
         await _storage.write(key: 'userId', value: payload.toString());
       }
       return await _storage.read(key: 'accessToken');
