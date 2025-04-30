@@ -10,6 +10,7 @@ import 'package:lbpool/services/string_utils.dart';
 import 'package:lbpool/views/login_view.dart';
 import 'package:lbpool/views/match_score_view.dart';
 import 'package:lbpool/widgets/date_field.dart';
+import 'package:lbpool/widgets/responsive_scaffold.dart';
 import 'package:lbpool/widgets/time_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -297,16 +298,21 @@ class _MatchCreationView extends ConsumerState<MatchCreationView> {
       }
     }
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: (widget.isModification) ? const Text("Match edit") : const Text("New match"),
-        backgroundColor: ColorScheme.of(context).primary,
-        foregroundColor: ColorScheme.of(context).onPrimary,
-        scrolledUnderElevation: 0,
-      ),
-      body: mainContent
+    return ResponsiveScaffold(
+      title: (widget.isModification) ? 'Match edit' : 'New match',
+      body: mainContent,
     );
+
+    // return Scaffold(
+    //   resizeToAvoidBottomInset: false,
+    //   backgroundColor: Colors.white,
+    //   appBar: AppBar(
+    //     title: (widget.isModification) ? const Text("Match edit") : const Text("New match"),
+    //     backgroundColor: ColorScheme.of(context).primary,
+    //     foregroundColor: ColorScheme.of(context).onPrimary,
+    //     scrolledUnderElevation: 0,
+    //   ),
+    //   body: mainContent
+    // );
   }
 }

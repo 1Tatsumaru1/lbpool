@@ -1,4 +1,4 @@
-import 'package:lbpool/widgets/custom_drawer.dart';
+import 'package:lbpool/widgets/responsive_scaffold.dart';
 import 'package:lbpool/widgets/text_section.dart';
 import 'package:flutter/material.dart';
 
@@ -71,54 +71,61 @@ Ball-in-Hand Fouls (opponent may place the cue ball anywhere on the table):
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      drawer: CustomDrawer(context: context),
-      appBar: AppBar(
-        title: Text('License'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        scrolledUnderElevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ...(contentMap['first']!.map((section) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 24.0),
-                  child: TextSection(
-                    title: section['title']!,
-                    content: section['content']!,
-                  ),
-                );
-              }).toList()),
-
-              Center(
-                child: Image.asset(
-                  'assets/images/disposition.png',
-                  height: 150,
-                  alignment: Alignment.center,
+    final Widget mainContent = SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...(contentMap['first']!.map((section) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 24.0),
+                child: TextSection(
+                  title: section['title']!,
+                  content: section['content']!,
                 ),
+              );
+            }).toList()),
+
+            Center(
+              child: Image.asset(
+                'assets/images/disposition.png',
+                height: 150,
+                alignment: Alignment.center,
               ),
+            ),
 
-              SizedBox(height: 30,),
+            SizedBox(height: 30,),
 
-              ...(contentMap['second']!.map((section) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 24.0),
-                  child: TextSection(
-                    title: section['title']!,
-                    content: section['content']!,
-                  ),
-                );
-              }).toList()),              
-            ],
-          ),
+            ...(contentMap['second']!.map((section) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 24.0),
+                child: TextSection(
+                  title: section['title']!,
+                  content: section['content']!,
+                ),
+              );
+            }).toList()),              
+          ],
         ),
       ),
     );
+
+    return ResponsiveScaffold(
+      title: 'Rules',
+      body: mainContent,
+    );
+
+    // return Scaffold(
+    //   backgroundColor: Colors.white,
+    //   drawer: CustomDrawer(context: context),
+    //   appBar: AppBar(
+    //     title: Text('Rules'),
+    //     backgroundColor: Theme.of(context).colorScheme.primary,
+    //     foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    //     scrolledUnderElevation: 0,
+    //   ),
+    //   body: mainContent
+    // );
   }
 }

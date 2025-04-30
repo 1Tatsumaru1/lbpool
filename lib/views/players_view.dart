@@ -10,7 +10,7 @@ import 'package:lbpool/services/string_utils.dart';
 import 'package:lbpool/views/dashboard_view.dart';
 import 'package:lbpool/views/login_view.dart';
 import 'package:lbpool/views/match_creation_view.dart';
-import 'package:lbpool/widgets/custom_drawer.dart';
+import 'package:lbpool/widgets/responsive_scaffold.dart';
 
 class PlayersView extends ConsumerStatefulWidget {
   const PlayersView({super.key});
@@ -159,6 +159,8 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
 
       // Main content with users list
       } else {
+        final int bottomRank = _filteredPlayers().length;
+
         mainContent = Column(
           children: [
             // Search bar
@@ -196,20 +198,34 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(25),
-                                  color: Colors.white,
+                                  color: (p.rank == 1)
+                                    ? Colors.yellow.shade700
+                                    : (p.rank == 2)
+                                      ? Colors.grey.shade400
+                                      : (p.rank == 3)
+                                        ? Color.fromARGB(255, 190, 138, 7)
+                                        : (p.rank == bottomRank)
+                                          ? Colors.black
+                                          : Colors.white
                                 ),
                                 padding: EdgeInsets.all(8),
                                 height: 50,
                                 width: 50,
-                                child: Text(
-                                  p.rank.toString(), 
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSecondaryContainer,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  )
-                                ),
+                                child: (p.rank == 1)
+                                  ? Icon(Icons.emoji_events, color: Colors.white)
+                                  : (p.rank == bottomRank)
+                                    ? Icon(Icons.assist_walker, color: Colors.white,)
+                                    : Text(
+                                        p.rank.toString(), 
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: (p.rank == 2 || p.rank == 3)
+                                            ? Colors.white
+                                            : Theme.of(context).colorScheme.onSecondaryContainer,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                        )
+                                      ),
                               ),
                               title: Text(
                                 p.name,
@@ -285,23 +301,38 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
       }
     }
 
-    return Scaffold(
-      drawer: CustomDrawer(context: context),
-      appBar: AppBar(
-        title: Text('Players'),
-        backgroundColor: ColorScheme.of(context).primary,
-        foregroundColor: ColorScheme.of(context).onPrimary,
-        scrolledUnderElevation: 0,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    return ResponsiveScaffold(
+      title: 'Players',
+      body: mainContent,
+      barAction: ElevatedButton.icon(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(EdgeInsets.all(16)),
+          backgroundColor: WidgetStateProperty.all(Colors.white),
+          foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+        ),
         onPressed: () { _instantMatch(context); },
         icon: const Icon(Icons.compare_arrows),
         label: const Text('Instant Match', style: TextStyle(fontSize: 16),),
       ),
-      backgroundColor: Colors.white,
-      body: mainContent
     );
+
+    // return Scaffold(
+    //   drawer: CustomDrawer(context: context),
+    //   appBar: AppBar(
+    //     title: Text('Players'),
+    //     backgroundColor: ColorScheme.of(context).primary,
+    //     foregroundColor: ColorScheme.of(context).onPrimary,
+    //     scrolledUnderElevation: 0,
+    //   ),
+    //   floatingActionButton: FloatingActionButton.extended(
+    //     backgroundColor: Theme.of(context).colorScheme.primary,
+    //     foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    //     onPressed: () { _instantMatch(context); },
+    //     icon: const Icon(Icons.compare_arrows),
+    //     label: const Text('Instant Match', style: TextStyle(fontSize: 16),),
+    //   ),
+    //   backgroundColor: Colors.white,
+    //   body: mainContent
+    // );
   }
 }

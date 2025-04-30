@@ -9,8 +9,8 @@ import 'package:lbpool/services/http_service.dart';
 import 'package:lbpool/services/match_service.dart';
 import 'package:lbpool/services/string_utils.dart';
 import 'package:lbpool/views/login_view.dart';
-import 'package:lbpool/widgets/custom_drawer.dart';
 import 'package:lbpool/widgets/custom_linechart.dart';
+import 'package:lbpool/widgets/responsive_scaffold.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key, required this.playerId, required this.isSelf, this.viewedPlayer});
@@ -505,15 +505,20 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       }
     }
 
-    return Scaffold(
-      drawer: (widget.isSelf) ? CustomDrawer(context: context) : null,
-      appBar: AppBar(
-        title: Text(widget.isSelf ? 'Dashboard' : 'Stats on ${widget.viewedPlayer?.name}'),
-        backgroundColor: ColorScheme.of(context).primary,
-        foregroundColor: ColorScheme.of(context).onPrimary,
-      ),
-      backgroundColor: Colors.white,
+    return ResponsiveScaffold(
+      title: widget.isSelf ? 'Dashboard' : 'Stats on ${widget.viewedPlayer?.name}',
       body: mainContent,
     );
+
+    // return Scaffold(
+    //   drawer: (widget.isSelf) ? CustomDrawer(context: context) : null,
+    //   appBar: AppBar(
+    //     title: Text(widget.isSelf ? 'Dashboard' : 'Stats on ${widget.viewedPlayer?.name}'),
+    //     backgroundColor: ColorScheme.of(context).primary,
+    //     foregroundColor: ColorScheme.of(context).onPrimary,
+    //   ),
+    //   backgroundColor: Colors.white,
+    //   body: mainContent,
+    // );
   }
 }

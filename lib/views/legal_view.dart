@@ -1,4 +1,4 @@
-import 'package:lbpool/widgets/custom_drawer.dart';
+import 'package:lbpool/widgets/responsive_scaffold.dart';
 import 'package:lbpool/widgets/text_section.dart';
 import 'package:flutter/material.dart';
 
@@ -28,32 +28,39 @@ class LegalView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white, // Couleur de fond
-      drawer: CustomDrawer(context: context),
-      appBar: AppBar(
-        title: Text('License'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        scrolledUnderElevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: contentMap['license']!.map((section) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 24.0),
-                child: TextSection(
-                  title: section['title']!,
-                  content: section['content']!,
-                ),
-              );
-            }).toList(),
-          ),
+    final Widget mainContent = SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: contentMap['license']!.map((section) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 24.0),
+              child: TextSection(
+                title: section['title']!,
+                content: section['content']!,
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
+
+    return ResponsiveScaffold(
+      title: 'License',
+      body: mainContent,
+    );
+
+    // return Scaffold(
+    //   backgroundColor: Colors.white, // Couleur de fond
+    //   drawer: CustomDrawer(context: context),
+    //   appBar: AppBar(
+    //     title: Text('License'),
+    //     backgroundColor: Theme.of(context).colorScheme.primary,
+    //     foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    //     scrolledUnderElevation: 0,
+    //   ),
+    //   body: 
+    // );
   }
 }

@@ -31,7 +31,7 @@ class HttpService {
         .timeout(timeoutDuration, onTimeout: () {
           throw TimeoutException(null);
         },);
-      return _handleResponse(response);
+      return await _handleResponse(response);
     } on TimeoutException catch (e) {
       return {'success': false, 'message': 'Request failed (timeout)', 'content': e.message};
     } catch (e) {
@@ -54,7 +54,7 @@ class HttpService {
         .timeout(timeoutDuration, onTimeout: () {
           throw TimeoutException(null);
         },);
-      return _handleResponse(response);
+      return await _handleResponse(response);
     } on TimeoutException catch (e) {
       return {'success': false, 'message': 'Request failed (timeout)', 'content': e.message};
     } catch (e) {
@@ -77,7 +77,7 @@ class HttpService {
         .timeout(timeoutDuration, onTimeout: () {
           throw TimeoutException(null);
         },);
-      return _handleResponse(response);
+      return await _handleResponse(response);
     } on TimeoutException catch (e) {
       return {'success': false, 'message': 'Request failed (timeout)', 'content': e.message};
     } catch (e) {
@@ -100,7 +100,7 @@ class HttpService {
         .timeout(timeoutDuration, onTimeout: () {
           throw TimeoutException(null);
         },);
-      return _handleResponse(response);
+      return await _handleResponse(response);
     } on TimeoutException catch (e) {
       return {'success': false, 'message': 'Request failed (timeout)', 'content': e.message};
     } catch (e) {
@@ -124,7 +124,8 @@ class HttpService {
           throw TimeoutException(null);
         });
       if (response.statusCode != 200) return null;
-      int? payload = _parseBody(response);
+      int? payload = await _parseBody(response);
+      print('payload : $payload');
       if (payload == null) return null;
       if (payload.toString().isNotEmpty && payload.toString().length < 5) {
         await _storage.write(key: 'userId', value: payload.toString());
@@ -193,7 +194,7 @@ class HttpService {
   /// - success (bool): whether the http request secceeded or not
   /// - message (String): message to display to the user in a snackbar message / empty string if no message
   /// - content (dynamic): the response body payload decoded / empty string if no content
-  Map<String, dynamic> _handleResponse(http.Response response) {
+  Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     Map<String, dynamic> result = {
       'success': false,
       'message': '',
@@ -202,7 +203,7 @@ class HttpService {
     switch (response.statusCode) {
       case 200:
         result['success'] = true;
-        result['content'] = _parseBody(response);
+        result['content'] = await _parseBody(response);
         result['message'] = 'Request successful';
         break;
       case 204:
@@ -229,10 +230,10 @@ class HttpService {
 
   /// HTTP response handling
   /// return either the payload in case of success, or an empty string otherwise
-  dynamic _parseBody(http.Response response) {
+  dynamic _parseBody(http.Response response) async {
     try {
       Map<String, dynamic> body = jsonDecode(response.body);
-      if (body.containsKey('access_token')) _saveTokens(body['access_token'], body['refresh_token']);
+      if (body.containsKey('access_token')) await _saveTokens(body['access_token'], body['refresh_token']);
       return body['payload'];
     } catch (e) {
       return '';

@@ -11,7 +11,7 @@ import 'package:lbpool/services/string_utils.dart';
 import 'package:lbpool/views/login_view.dart';
 import 'package:lbpool/views/match_creation_view.dart';
 import 'package:lbpool/views/match_score_view.dart';
-import 'package:lbpool/widgets/custom_drawer.dart';
+import 'package:lbpool/widgets/responsive_scaffold.dart';
 
 class MatchView extends ConsumerStatefulWidget {
   const MatchView({super.key});
@@ -429,23 +429,40 @@ class _MatchViewState extends ConsumerState<MatchView> {
       }
     }
 
-    return Scaffold(
-      drawer: CustomDrawer(context: context),
-      appBar: AppBar(
-        title: Text('Match'),
-        backgroundColor: ColorScheme.of(context).primary,
-        foregroundColor: ColorScheme.of(context).onPrimary,
-        scrolledUnderElevation: 0,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: _isMatching ? Colors.grey : Theme.of(context).colorScheme.onPrimary,
+    return ResponsiveScaffold(
+      title: 'Match',
+      body: mainContent,
+      barAction: ElevatedButton.icon(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(EdgeInsets.all(16)),
+          backgroundColor: _isMatching
+            ? WidgetStateProperty.all(Colors.grey)
+            : WidgetStateProperty.all(Colors.white),
+          foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+        ),
         onPressed: _isMatching ? null : () { _instantMatch(context); },
         icon: _isMatching ? CircularProgressIndicator() : const Icon(Icons.compare_arrows),
         label: const Text('Instant Match', style: TextStyle(fontSize: 16),),
       ),
-      backgroundColor: Colors.white,
-      body: mainContent
     );
+
+    // return Scaffold(
+    //   drawer: CustomDrawer(context: context),
+    //   appBar: AppBar(
+    //     title: Text('Match'),
+    //     backgroundColor: ColorScheme.of(context).primary,
+    //     foregroundColor: ColorScheme.of(context).onPrimary,
+    //     scrolledUnderElevation: 0,
+    //   ),
+    //   floatingActionButton: FloatingActionButton.extended(
+    //     backgroundColor: Theme.of(context).colorScheme.primary,
+    //     foregroundColor: _isMatching ? Colors.grey : Theme.of(context).colorScheme.onPrimary,
+    //     onPressed: _isMatching ? null : () { _instantMatch(context); },
+    //     icon: _isMatching ? CircularProgressIndicator() : const Icon(Icons.compare_arrows),
+    //     label: const Text('Instant Match', style: TextStyle(fontSize: 16),),
+    //   ),
+    //   backgroundColor: Colors.white,
+    //   body: mainContent
+    // );
   }
 }
