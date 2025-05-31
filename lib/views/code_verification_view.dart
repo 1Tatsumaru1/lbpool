@@ -18,7 +18,7 @@ class CodeVerificationView extends ConsumerStatefulWidget {
   ConsumerState<CodeVerificationView> createState() => _CodeVerificationViewState();
 }
 
-class _CodeVerificationViewState extends ConsumerState<CodeVerificationView> {
+class _CodeVerificationViewState extends ConsumerState<CodeVerificationView> with WidgetsBindingObserver {
   final _codeControllers = List<TextEditingController>.generate(6, (index) => TextEditingController());
   final _focusNodes = List<FocusNode>.generate(6, (index) => FocusNode());
   bool _isCodeValid = false;
@@ -29,6 +29,7 @@ class _CodeVerificationViewState extends ConsumerState<CodeVerificationView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _monitorClipboard();
   }
 
@@ -94,9 +95,9 @@ class _CodeVerificationViewState extends ConsumerState<CodeVerificationView> {
         ref.read(httpServiceProvider.notifier).setHttpService(httpService);
       }
       AuthService authService = AuthService(httpService: httpService);
-      Map<String, dynamic> codeCheckResult = (!ref.read(connectivityProvider))
-      ? {'success': false, 'message': 'Offline', 'content': ''}
-      : await authService.checkUserToken(widget.identifier, code);
+      // Map<String, dynamic> codeCheckResult = (!ref.read(connectivityProvider))
+      // ? {'success': false, 'message': 'Offline', 'content': ''}
+      Map<String, dynamic> codeCheckResult = await authService.checkUserToken(widget.identifier, code);
       if (!codeCheckResult['success'] && codeCheckResult['redirect'] != null && codeCheckResult['redirect']) {
         if (context.mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (BuildContext context) => LoginView()));
         return;
@@ -118,7 +119,15 @@ class _CodeVerificationViewState extends ConsumerState<CodeVerificationView> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _isMonitoringClipboard = false;
     for (TextEditingController controller in _codeControllers) {
       controller.dispose();

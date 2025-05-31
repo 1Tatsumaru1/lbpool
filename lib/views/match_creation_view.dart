@@ -32,7 +32,7 @@ class MatchCreationView extends ConsumerStatefulWidget {
   ConsumerState<MatchCreationView> createState() => _MatchCreationView();
 }
 
-class _MatchCreationView extends ConsumerState<MatchCreationView> {
+class _MatchCreationView extends ConsumerState<MatchCreationView> with WidgetsBindingObserver {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
@@ -49,6 +49,7 @@ class _MatchCreationView extends ConsumerState<MatchCreationView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     setState(() => _isLoading = true);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       String? formattedDate = (widget.isModification && widget.legacyEvent != null) 
@@ -84,6 +85,19 @@ class _MatchCreationView extends ConsumerState<MatchCreationView> {
     }
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
+    }
+  }
+
   void _onSaveDate(value) {
     value = sanitizer.convert(value.trim()).replaceAll('&#47;', '/');
     _dateController.text = value;
@@ -109,13 +123,13 @@ class _MatchCreationView extends ConsumerState<MatchCreationView> {
         Map<String, dynamic> result;
         if (widget.isModification && widget.legacyEvent != null) {
           newMatch.id = widget.legacyEvent!.id;
-          result = (!ref.read(connectivityProvider))
-            ? {'success': false, 'message': 'Offline', 'content': ''}
-            : await _matchService.alterMatch(newMatch.id!, newMatch.p1Id, newMatch.p2Id, newMatch.startTime);
+          // result = (!ref.read(connectivityProvider))
+          //   ? {'success': false, 'message': 'Offline', 'content': ''}
+          result = await _matchService.alterMatch(newMatch.id!, newMatch.p1Id, newMatch.p2Id, newMatch.startTime);
         } else {
-          result = (!ref.read(connectivityProvider))
-            ? {'success': false, 'message': 'Offline', 'content': ''}
-            : await _matchService.createMatch(newMatch.p1Id, newMatch.p2Id, newMatch.startTime);
+          // result = (!ref.read(connectivityProvider))
+          //   ? {'success': false, 'message': 'Offline', 'content': ''}
+          result = await _matchService.createMatch(newMatch.p1Id, newMatch.p2Id, newMatch.startTime);
         }
         if (!result['success'] && result['redirect'] != null && result['redirect']) {
           if (context.mounted) {

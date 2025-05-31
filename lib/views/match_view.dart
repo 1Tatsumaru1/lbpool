@@ -20,7 +20,7 @@ class MatchView extends ConsumerStatefulWidget {
   ConsumerState<MatchView> createState() => _MatchViewState();
 }
 
-class _MatchViewState extends ConsumerState<MatchView> {
+class _MatchViewState extends ConsumerState<MatchView> with WidgetsBindingObserver {
   late HttpService? _httpService;
   late MatchService _matchService;
   final List<Match> _matches = [];
@@ -31,12 +31,14 @@ class _MatchViewState extends ConsumerState<MatchView> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
   bool _isMatching = false;
+  bool _isDeleting = false;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   int? _userId;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       setState(() => _isLoading = true);
       _httpService = ref.read(httpServiceProvider);
@@ -59,9 +61,9 @@ class _MatchViewState extends ConsumerState<MatchView> {
 
   /// Get the full list of patients from API
   Future<void> _getAllMatches() async {
-    Map<String, dynamic> result = (!ref.read(connectivityProvider))
-      ? {'success': false, 'message': 'Offline', 'content': ''}
-      : await _matchService.getMatchesByPlayer(_userId);
+    // Map<String, dynamic> result = (!ref.read(connectivityProvider))
+    //   ? {'success': false, 'message': 'Offline', 'content': ''}
+    Map<String, dynamic> result = await _matchService.getMatchesByPlayer(_userId);
     if (!result['success'] && result['redirect'] != null && result['redirect']) {
       if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (BuildContext context) => LoginView()));
       return;
@@ -80,9 +82,9 @@ class _MatchViewState extends ConsumerState<MatchView> {
 
   /// Get the full list of players from API
   Future<void> _getAllPlayers() async {
-    Map<String, dynamic> result = (!ref.read(connectivityProvider))
-      ? {'success': false, 'message': 'Offline', 'content': ''}
-      : await _matchService.getPlayers();
+    // Map<String, dynamic> result = (!ref.read(connectivityProvider))
+    //   ? {'success': false, 'message': 'Offline', 'content': ''}
+    Map<String, dynamic> result = await _matchService.getPlayers();
     if (!result['success'] && result['redirect'] != null && result['redirect']) {
       if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (BuildContext context) => LoginView()));
       return;
@@ -124,6 +126,19 @@ class _MatchViewState extends ConsumerState<MatchView> {
         final fullName = (m.p1Id == _userId) ? m.p2Name.toLowerCase() : m.p1Name.toLowerCase();
         return fullName.contains(_searchText.toLowerCase()) && m.winnerId != null;
       }));
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
     }
   }
 
@@ -184,9 +199,103 @@ class _MatchViewState extends ConsumerState<MatchView> {
     }
   }
 
+  /// delete a match
+  Future<void> _deleteMatch(BuildContext context, Match match) async {
+    setState(() => _isDeleting = true);
+    if (context.mounted) {
+      // Map<String, dynamic> result = (!ref.read(connectivityProvider))
+      //     ? {'success': false, 'message': 'Offline', 'content': ''}
+      Map<String, dynamic> result = await _matchService.deleteMatch(match.id!);
+      if (!result['success'] && result['redirect'] != null && result['redirect']) {
+        if (context.mounted) {
+          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (BuildContext context) => LoginView()));
+        }
+        return;
+      }
+      if (!result['success'] && context.mounted) {
+        StringUtils.snackMessenger(context, result['message']);
+        setState(() => _isDeleting = false);
+        return;
+      }
+      setState(() => _isDeleting = false);
+    }
+  }
+
+  /// Show a modal to offer the chance to confirm before user deletion
+  Future<void> _showDeleteConfirmation(BuildContext context, Match match) async {
+    return showAdaptiveDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog.adaptive(
+          backgroundColor: Colors.white,
+          title: const Text('Delete confirmation', textAlign: TextAlign.center,),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(
+                  (match.winnerId == null)
+                  ? "You're about to delete this unrecorded match against ${match.p1Id == _userId ? match.p2Name : match.p1Name}"
+                  : "You're about to delete this match against ${match.p1Id == _userId ? match.p2Name : match.p1Name} recorded at ${StringUtils.formatDate(match.startTime)}",
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                ),
+                const Text('Do you confirm ?', textAlign: TextAlign.center,),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+              onPressed: () { Navigator.of(context).pop(); },
+            ),
+            ElevatedButton.icon(
+              label: const Text('Delete'),
+              icon: const Icon(Icons.delete),
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all(Colors.red),
+                foregroundColor: WidgetStateProperty.all(Colors.white),
+              ),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _deleteMatch(context, match);
+                setState(() => _isLoading = true);
+                await _resetMatchList();
+              },
+            )
+          ],
+        );
+      }
+    );
+  }
+
+  /// rescore a match
+  Future<void> _rescoreMatch(BuildContext context, Match match) async {
+    if (context.mounted) {
+      Map<String, dynamic>? response = await Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => MatchScoreView(
+          origin: 'match',
+          match: match,
+          isModification: true,
+        ))
+      );
+      if (response != null && response['elo'] != null && context.mounted) {
+        await _resetMatchList();
+        if (context.mounted) {
+          StringUtils.snackMessenger(
+            context,
+            'After modification : ELO ${response['elo']} | Rank ${response['new_rank']}'
+          );
+        }
+      } else if (response == null && context.mounted) {
+        StringUtils.snackMessenger(context, 'The match was not saved');
+      }
+    }
+  }
+
   
   @override
   Widget build(BuildContext context) {
+    final bool isLargeScreen = MediaQuery.of(context).size.width > 800;
 
     // Default content : charging
     Widget mainContent = Center(
@@ -309,7 +418,7 @@ class _MatchViewState extends ConsumerState<MatchView> {
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
                                   ElevatedButton.icon(
-                                    label: const Text('Edit match'),
+                                    label: const Text('Edit'),
                                     icon: const Icon(Icons.edit),
                                     style: ButtonStyle(
                                       backgroundColor: WidgetStateProperty.all(Colors.white),
@@ -318,13 +427,24 @@ class _MatchViewState extends ConsumerState<MatchView> {
                                     onPressed: () { _editMatch(context, m); },
                                   ),
                                   ElevatedButton.icon(
-                                    label: const Text('Score match'),
+                                    label: const Text('Score'),
                                     icon: const Icon(Icons.sports_score),
                                     style: ButtonStyle(
                                       backgroundColor: WidgetStateProperty.all(Colors.white),
                                       foregroundColor: WidgetStateProperty.all(Colors.black),
                                     ),
                                     onPressed: () { _scoreMatch(context, m); },
+                                  ),
+                                  ElevatedButton.icon(
+                                    label: _isDeleting
+                                      ? CircularProgressIndicator(color: Colors.white,)
+                                      : const Text('Delete'),
+                                    icon: const Icon(Icons.delete),
+                                    style: ButtonStyle(
+                                      backgroundColor: WidgetStateProperty.all(Colors.red),
+                                      foregroundColor: WidgetStateProperty.all(Colors.white),
+                                    ),
+                                    onPressed: () { _showDeleteConfirmation(context, m); },
                                   ),
                                 ],
                               ),
@@ -363,8 +483,8 @@ class _MatchViewState extends ConsumerState<MatchView> {
                                     width: 50,
                                     child: Text(
                                       (m.winnerId == _userId)
-                                        ? '+${m.reward}'
-                                        : '-${m.reward}',
+                                        ? '+${(m.reward! + m.additional!)}'
+                                        : '-${(m.reward! + m.additional!)}',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: Colors.white,
@@ -402,15 +522,88 @@ class _MatchViewState extends ConsumerState<MatchView> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Remaining : ${m.remaining} balls',
-                                    style: TextStyle(color: Colors.black),
+                                  Table(
+                                    border: TableBorder.all(color: Colors.white, width: 2),
+                                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                                    children: [
+                                      TableRow(
+                                        decoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer),
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text('Loser\'s Remaining balls', style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              '${m.remaining} ball(s)',
+                                              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSecondaryContainer),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      TableRow(
+                                        decoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer),
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text('Additional points', style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              '${m.additional} point(s)',
+                                              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSecondaryContainer),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      TableRow(
+                                        decoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer),
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text('Result type', style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer),),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              m.forfeit == true
+                                                ? '${(m.winnerId == _userId) ? 'Won' : 'Lost'} by forfeit'
+                                                : 'Regular ${(m.winnerId == _userId) ? 'win' : 'loss'}',
+                                              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSecondaryContainer),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                    Text(
-                                      (m.forfeit == true)
-                                        ? '${(m.winnerId == _userId) ? 'Won' : 'Lost'} by forfeit'
-                                        : 'Regular ${(m.winnerId == _userId) ? 'win' : 'loss'}',
-                                      style: TextStyle(color: Colors.black,),
+                                  const SizedBox(height: 16,),
+                                  if (DateTime.tryParse(m.startTime) != null && StringUtils.isDateAfterMidnight(DateTime.parse(m.startTime)))
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      children: [
+                                        ElevatedButton.icon(
+                                          label: const Text('Rescore'),
+                                          icon: const Icon(Icons.sports_score),
+                                          style: ButtonStyle(
+                                            backgroundColor: WidgetStateProperty.all(Colors.white),
+                                            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.onSecondaryContainer),
+                                          ),
+                                          onPressed: () { _rescoreMatch(context, m); },
+                                        ),
+                                        ElevatedButton.icon(
+                                          label: _isDeleting
+                                            ? CircularProgressIndicator(color: Colors.white,)
+                                            : const Text('Delete'),
+                                          icon: const Icon(Icons.delete, color: Colors.white,),
+                                          style: ButtonStyle(
+                                            backgroundColor: WidgetStateProperty.all(Colors.red),
+                                            foregroundColor: WidgetStateProperty.all(Colors.white),
+                                          ),
+                                          onPressed: () { _showDeleteConfirmation(context, m); },
+                                        ),
+                                      ]
                                     ),
                                 ],
                               ),
@@ -432,18 +625,54 @@ class _MatchViewState extends ConsumerState<MatchView> {
     return ResponsiveScaffold(
       title: 'Match',
       body: mainContent,
-      barAction: ElevatedButton.icon(
-        style: ButtonStyle(
-          padding: WidgetStateProperty.all(EdgeInsets.all(16)),
-          backgroundColor: _isMatching
-            ? WidgetStateProperty.all(Colors.grey)
-            : WidgetStateProperty.all(Colors.white),
-          foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+      barAction: (isLargeScreen)
+      ? ElevatedButton.icon(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+            backgroundColor: _isMatching
+              ? WidgetStateProperty.all(Colors.grey)
+              : WidgetStateProperty.all(Colors.white),
+            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: _isMatching ? null : () { _instantMatch(context); },
+          icon: _isMatching ? CircularProgressIndicator() : const Icon(Icons.compare_arrows),
+          label: const Text('Match', style: TextStyle(fontSize: 16),),
+        )
+      : IconButton(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+            backgroundColor: _isMatching
+              ? WidgetStateProperty.all(Colors.grey)
+              : WidgetStateProperty.all(Colors.white),
+            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: _isMatching ? null : () { _instantMatch(context); },
+          icon: _isMatching ? CircularProgressIndicator() : const Icon(Icons.compare_arrows),
         ),
-        onPressed: _isMatching ? null : () { _instantMatch(context); },
-        icon: _isMatching ? CircularProgressIndicator() : const Icon(Icons.compare_arrows),
-        label: const Text('Instant Match', style: TextStyle(fontSize: 16),),
-      ),
+      refresh: (isLargeScreen)
+      ? ElevatedButton.icon(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+            backgroundColor: _isMatching
+              ? WidgetStateProperty.all(Colors.grey)
+              : WidgetStateProperty.all(Colors.white),
+            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: _isMatching ? null : () { _resetMatchList(); },
+          icon: const Icon(Icons.sync),
+          label: const Text('Refresh', style: TextStyle(fontSize: 16),),
+        )
+      : IconButton(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+            backgroundColor: _isMatching
+              ? WidgetStateProperty.all(Colors.grey)
+              : WidgetStateProperty.all(Colors.white),
+            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: _isMatching ? null : () { _resetMatchList(); },
+          icon: const Icon(Icons.sync),
+        ),
     );
 
     // return Scaffold(

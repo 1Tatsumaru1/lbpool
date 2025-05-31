@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lbpool/model/elo_point.dart';
 import 'package:lbpool/model/player.dart';
+import 'package:lbpool/model/match.dart';
 import 'package:lbpool/providers/connectivity_provider.dart';
 import 'package:lbpool/providers/network_provider.dart';
 import 'package:lbpool/services/http_service.dart';
@@ -23,7 +24,7 @@ class DashboardView extends ConsumerStatefulWidget {
   ConsumerState<DashboardView> createState() => _DashboardViewState();
 }
 
-class _DashboardViewState extends ConsumerState<DashboardView> {
+class _DashboardViewState extends ConsumerState<DashboardView> with WidgetsBindingObserver {
   late HttpService? _httpService;
   late MatchService _matchService;
   Map<String, dynamic> _stats = {};
@@ -36,6 +37,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _httpService = ref.read(httpServiceProvider);
       if (_httpService == null) {
@@ -56,9 +58,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
 
   Future<void> _getPlayerstats() async {
     setState(() => _isLoading = true);
-    Map<String, dynamic> statQuery = (!ref.read(connectivityProvider))
-      ? {'success': false, 'message': 'Offline', 'content': ''}
-      : await _matchService.getStatsSinglePlayer(widget.playerId);
+    // Map<String, dynamic> statQuery = (!ref.read(connectivityProvider))
+    //   ? {'success': false, 'message': 'Offline', 'content': ''}
+    Map<String, dynamic> statQuery = await _matchService.getStatsSinglePlayer(widget.playerId);
     if (!statQuery['success'] && statQuery['redirect'] != null && statQuery['redirect']) {
       if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (BuildContext context) => LoginView()));
       return;
@@ -69,24 +71,26 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       return;
     }
     _stats = statQuery['content'];
-    _validatedMatches = _parseMatches(_stats['matches']);
+    _validatedMatches = _stats['matches'];
     setState(() => _isLoading = false);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
+    }
   }
 
   List<EloPoint> _mapToEloPoints(List<dynamic> eloHistory) {
     return eloHistory.map((record) {
       return EloPoint.createFromMap(record);
-    }).toList();
-  }
-
-  List<dynamic> _parseMatches(List<dynamic> rawMatches) {
-    return rawMatches.where((item) {
-      try {
-        DateTime.parse(item['someDate']);
-        return true;
-      } catch (_) {
-        return false;
-      }
     }).toList();
   }
 
@@ -326,7 +330,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ELO last 3 months', style: TextStyle(color: ColorScheme.of(context).onPrimaryContainer),),
+                    Text('ELO last 50 matches', style: TextStyle(color: ColorScheme.of(context).onPrimaryContainer),),
                     SizedBox(height: 12,),
                     SizedBox(
                       height: 150,
@@ -371,15 +375,16 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                 ),
-                                padding: EdgeInsets.all(8),
-                                height: 40,
-                                width: 40,
+                                padding: EdgeInsets.all(2),
+                                height: 45,
+                                width: 45,
                                 child: Text(
-                                  DateTime.parse(_validatedMatches[index]['start_time']).day.toString(),
+                                  'in ${Match.daysTillMatch(_validatedMatches[index]['start_time'])} days',
                                   textAlign: TextAlign.center,
+                                  softWrap: true,
                                   style: TextStyle(
                                     color: Theme.of(context).colorScheme.onSecondaryContainer,
-                                    fontSize: 16,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.bold,
                                   )
                                 ),
@@ -508,6 +513,16 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     return ResponsiveScaffold(
       title: widget.isSelf ? 'Dashboard' : 'Stats on ${widget.viewedPlayer?.name}',
       body: mainContent,
+      refresh: ElevatedButton.icon(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+          backgroundColor: WidgetStateProperty.all(Colors.white),
+          foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+        ),
+        onPressed: () { _getPlayerstats(); },
+        icon: const Icon(Icons.sync),
+        label: const Text('Refresh', style: TextStyle(fontSize: 16),),
+      ),
     );
 
     // return Scaffold(

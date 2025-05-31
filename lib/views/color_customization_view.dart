@@ -11,7 +11,7 @@ class ColorCustomizationView extends StatefulWidget {
 }
 
 class _ColorCustomizationViewState extends State<ColorCustomizationView> {
-  static const Color _defaultColor = Color.fromARGB(255, 255, 228, 168);
+  static const Color _defaultColor = Color.fromARGB(255, 3, 100, 255);
   Color _selectedColor = _defaultColor;
   late ColorScheme _colorScheme;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -32,7 +32,7 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
     const FlutterSecureStorage secureStorage = FlutterSecureStorage();
     String? savedColorValue = await secureStorage.read(key: 'customColorSeed');
     if (savedColorValue == null) {
-      return const Color.fromARGB(255, 255, 228, 168);
+      return const Color.fromARGB(255, 3, 100, 255);
     }
     return Color(int.parse(savedColorValue));
   }
@@ -47,7 +47,7 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Sélectionnez une couleur'),
+          title: const Text('Select a color'),
           content: SingleChildScrollView(
             child: BlockPicker(
               pickerColor: _selectedColor,
@@ -88,7 +88,7 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Personnalisation'),
+        title: const Text('Customization'),
         backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
         foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
       ),
@@ -111,7 +111,7 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
                     backgroundColor: _selectedColor == _defaultColor ? Colors.grey[50] : Theme.of(context).colorScheme.secondaryContainer,
                     foregroundColor: _selectedColor == _defaultColor ? Colors.white : Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
-                  label: const Text("Couleur par défaut"),
+                  label: const Text("Default color"),
                   icon: const Icon(Icons.arrow_circle_left),
                 ),
 
@@ -130,7 +130,7 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
 
           // 2nd level : Simulation
           const SizedBox(height: 20,),
-          const Text('Exemple de rendu'),
+          const Text('Sample display'),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Container(
@@ -148,7 +148,7 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
                       children: [
                         const Icon(Icons.arrow_back),
                         const SizedBox(width: 20,),
-                        Text('Ecran d\'exemple', style: TextStyle(fontSize: 20, color: _colorScheme.onSecondaryContainer),)
+                        Text('Sample screen', style: TextStyle(fontSize: 20, color: _colorScheme.onSecondaryContainer),)
                       ],
                     ),
                   ),
@@ -158,8 +158,8 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
                       color: _colorScheme.secondaryContainer,
                       child: ListTile(
                         leading: const Icon(Icons.place),
-                        title: const Text('Elément'),
-                        subtitle: const Text('Détails'),
+                        title: const Text('Element'),
+                        subtitle: const Text('Details'),
                         textColor: _colorScheme.onSecondaryContainer,
                       ),
                     ),
@@ -187,7 +187,7 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
             ),
           ),
           const Text(
-            'Le changement de couleur sera effectif au prochain redémarrage de l\'application',
+            'Color change will be effective on the next app restart',
             softWrap: true,
             textAlign: TextAlign.center,
           ),
@@ -201,7 +201,7 @@ class _ColorCustomizationViewState extends State<ColorCustomizationView> {
         },
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-        label: const Text('Valider'),
+        label: const Text('Submit'),
         icon: const Icon(Icons.check),
       ),
     );

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:lbpool/widgets/custom_drawer.dart';
 
 class ResponsiveScaffold extends StatelessWidget {
-  const ResponsiveScaffold({super.key, required this.title, required this.body, this.barAction, this.isRootscreen = true});
+  const ResponsiveScaffold({super.key, required this.title, required this.body, this.barAction, this.refresh, this.isRootscreen = true});
 
   final String title;
   final Widget body;
   final Widget? barAction;
+  final Widget? refresh;
   final bool isRootscreen;
 
   @override
@@ -20,7 +21,16 @@ class ResponsiveScaffold extends StatelessWidget {
         backgroundColor: ColorScheme.of(context).primary,
         foregroundColor: ColorScheme.of(context).onPrimary,
         scrolledUnderElevation: 0,
-        actions: (barAction == null) ? null : [barAction!],
+        actions: (barAction == null && refresh == null) 
+          ? null 
+          : (barAction != null  && refresh == null)
+            ? [Padding(padding: EdgeInsets.only(right: 16), child: barAction!)]
+            : (barAction == null  && refresh != null)
+              ? [Padding(padding: EdgeInsets.only(right: 16), child: refresh!)]
+              : [
+                Padding(padding: EdgeInsets.only(right: 16), child: refresh!),
+                Padding(padding: EdgeInsets.only(right: 16), child: barAction!),
+              ],
       ),
       backgroundColor: Colors.white,
       body: body,

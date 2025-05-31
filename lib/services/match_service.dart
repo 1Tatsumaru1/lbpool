@@ -92,6 +92,32 @@ class MatchService {
     return result;
   }
 
+  /// Rescore a match
+  Future<Map<String, dynamic>> rescoreMatch(int id, int winnerId, bool isForfeit, int contestLevel, int remaining) async {
+    final Map<String, dynamic> result = await httpService.post(
+      '/match/rescoreMatch',
+      {
+        'id': id.toString(),
+        'winner_id': winnerId.toString(),
+        'is_forfeit': (isForfeit) ? '1' : '0',
+        'contest_level': contestLevel.toString(),
+        'remaining': remaining.toString(),
+      }
+    );
+    return result;
+  }
+
+  /// Delete a match
+  Future<Map<String, dynamic>> deleteMatch(int id) async {
+    final Map<String, dynamic> result = await httpService.post(
+      '/match/deleteMatch',
+      {
+        'id': id.toString(),
+      }
+    );
+    return result;
+  }
+
   // /// Change user license status
   // Future<Map<String, dynamic>> toggleUserActivationStatus(int id, int status) async {
   //   final Map<String, dynamic> result = await httpService.put(

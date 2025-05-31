@@ -19,7 +19,7 @@ class PlayersView extends ConsumerStatefulWidget {
   ConsumerState<PlayersView> createState() => _PlayersViewState();
 }
 
-class _PlayersViewState extends ConsumerState<PlayersView> {
+class _PlayersViewState extends ConsumerState<PlayersView> with WidgetsBindingObserver {
   late HttpService? _httpService;
   late MatchService _matchService;
   final List<Player> _players = [];
@@ -32,6 +32,7 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       setState(() => _isLoading = true);
       _httpService = ref.read(httpServiceProvider);
@@ -54,9 +55,9 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
 
   /// Get the full list of players from API
   Future<void> _getAllPlayers() async {
-    Map<String, dynamic> result = (!ref.read(connectivityProvider))
-      ? {'success': false, 'message': 'Offline', 'content': ''}
-      : await _matchService.getPlayers();
+    // Map<String, dynamic> result = (!ref.read(connectivityProvider))
+    //   ? {'success': false, 'message': 'Offline', 'content': ''}
+    Map<String, dynamic> result = await _matchService.getPlayers();
     if (!result['success'] && result['redirect'] != null && result['redirect']) {
       if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (BuildContext context) => LoginView()));
       return;
@@ -89,6 +90,19 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
         final fullName = p.name.toLowerCase();
         return fullName.contains(_searchText.toLowerCase());
       }).toList();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
     }
   }
 
@@ -129,6 +143,7 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
   
   @override
   Widget build(BuildContext context) {
+    final bool isLargeScreen = MediaQuery.of(context).size.width > 800;
 
     // Default content : charging
     Widget mainContent = Center(
@@ -182,118 +197,143 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
 
             // Player list
             Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: ExpansionPanelList.radio(
-                    children: _filteredPlayers().map((Player p) {
-                      return ExpansionPanelRadio(
-                        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                        value: p.id,
-                        headerBuilder: (BuildContext context, bool isExpanded) {
-                          return Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ListTile(
-                              leading: Container(
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(25),
-                                  color: (p.rank == 1)
-                                    ? Colors.yellow.shade700
-                                    : (p.rank == 2)
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16.0),
+                itemCount: _filteredPlayers().length,
+                itemBuilder: (context, index) {
+                  final p = _filteredPlayers()[index];
+
+                  return Column(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        color: Theme.of(context).colorScheme.secondaryContainer,
+                        child: ListTile(
+                          leading: Container(
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(25),
+                              color: (p.rank == 1)
+                                  ? Colors.yellow.shade700
+                                  : (p.rank == 2)
                                       ? Colors.grey.shade400
                                       : (p.rank == 3)
-                                        ? Color.fromARGB(255, 190, 138, 7)
-                                        : (p.rank == bottomRank)
-                                          ? Colors.black
-                                          : Colors.white
-                                ),
-                                padding: EdgeInsets.all(8),
-                                height: 50,
-                                width: 50,
-                                child: (p.rank == 1)
-                                  ? Icon(Icons.emoji_events, color: Colors.white)
-                                  : (p.rank == bottomRank)
-                                    ? Icon(Icons.assist_walker, color: Colors.white,)
+                                          ? const Color.fromARGB(255, 190, 138, 7)
+                                          : (p.rank == bottomRank)
+                                              ? Colors.black
+                                              : Colors.white,
+                            ),
+                            padding: const EdgeInsets.all(4),
+                            height: 50,
+                            width: 50,
+                            child: (p.rank == 1)
+                                ? const Icon(Icons.emoji_events, color: Colors.white)
+                                : (p.rank == bottomRank)
+                                    ? const Icon(Icons.assist_walker, color: Colors.white)
                                     : Text(
-                                        p.rank.toString(), 
+                                        p.rank.toString(),
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           color: (p.rank == 2 || p.rank == 3)
-                                            ? Colors.white
-                                            : Theme.of(context).colorScheme.onSecondaryContainer,
+                                              ? Colors.white
+                                              : Theme.of(context).colorScheme.onSecondaryContainer,
                                           fontSize: 24,
                                           fontWeight: FontWeight.bold,
-                                        )
+                                        ),
                                       ),
-                              ),
-                              title: Text(
-                                p.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Theme.of(context).colorScheme.onSecondaryContainer
-                                )
-                              ),
-                              subtitle: Text(
-                                "${p.elo} points",
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context).colorScheme.onSecondaryContainer
-                                ),
-                              ),
+                          ),
+                          title: Text(
+                            p.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Theme.of(context).colorScheme.onSecondaryContainer,
                             ),
-                          );
-                        },
-                        body: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          ),
+                          subtitle: Text(
+                            "${p.elo} points",
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              ElevatedButton.icon(
-                                label: const Text('View stats'),
-                                icon: const Icon(Icons.remove_red_eye),
-                                style: (_userId == p.id)
-                                  ? ButtonStyle(
-                                    backgroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.secondaryContainer),
-                                    foregroundColor: WidgetStateProperty.all(Colors.grey),
-                                  )
-                                  : ButtonStyle(
-                                    backgroundColor: WidgetStateProperty.all(Colors.white),
-                                    foregroundColor: WidgetStateProperty.all(Colors.black),
-                                  ),
-                                onPressed: () { 
-                                  (_userId == p.id)
-                                  ? null
-                                  : _viewPlayer(context, p);
-                                },
-                              ),
-                              ElevatedButton.icon(
-                                label: const Text('Challenge'),
-                                icon: const Icon(Icons.compare_arrows),
-                                style: (_userId == p.id)
-                                  ? ButtonStyle(
-                                    backgroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.secondaryContainer),
-                                    foregroundColor: WidgetStateProperty.all(Colors.grey),
-                                  )
-                                  : ButtonStyle(
-                                    backgroundColor: WidgetStateProperty.all(Colors.white),
-                                    foregroundColor: WidgetStateProperty.all(Colors.black),
-                                  ),
-                                onPressed: () { 
-                                  (_userId == p.id)
-                                  ? null
-                                  : _challengePlayer(context, p);
-                                },
-                              ),
+                              (isLargeScreen)
+                              ? ElevatedButton.icon(
+                                  label: const Text('Stats'),
+                                  icon: const Icon(Icons.bar_chart),
+                                  style: (_userId == p.id)
+                                      ? ButtonStyle(
+                                          backgroundColor: WidgetStateProperty.all(
+                                              Theme.of(context).colorScheme.secondaryContainer),
+                                          foregroundColor: WidgetStateProperty.all(Colors.grey),
+                                        )
+                                      : ButtonStyle(
+                                          backgroundColor: WidgetStateProperty.all(Colors.white),
+                                          foregroundColor: WidgetStateProperty.all(Colors.black),
+                                        ),
+                                  onPressed: (_userId == p.id) ? null : () => _viewPlayer(context, p),
+                                )
+                              : IconButton(
+                                  icon: const Icon(Icons.bar_chart),
+                                  style: (_userId == p.id)
+                                      ? ButtonStyle(
+                                          backgroundColor: WidgetStateProperty.all(
+                                              Theme.of(context).colorScheme.secondaryContainer),
+                                          foregroundColor: WidgetStateProperty.all(Colors.grey),
+                                        )
+                                      : ButtonStyle(
+                                          backgroundColor: WidgetStateProperty.all(Colors.white),
+                                          foregroundColor: WidgetStateProperty.all(Colors.black),
+                                        ),
+                                  onPressed: (_userId == p.id) ? null : () => _viewPlayer(context, p),
+                                ),
+                              const SizedBox(width: 16),
+                              (isLargeScreen)
+                              ? ElevatedButton.icon(
+                                  label: const Text('Challenge'),
+                                  icon: const Icon(Icons.compare_arrows),
+                                  style: (_userId == p.id)
+                                      ? ButtonStyle(
+                                          backgroundColor: WidgetStateProperty.all(
+                                              Theme.of(context).colorScheme.secondaryContainer),
+                                          foregroundColor: WidgetStateProperty.all(Colors.grey),
+                                        )
+                                      : ButtonStyle(
+                                          backgroundColor: WidgetStateProperty.all(Colors.white),
+                                          foregroundColor: WidgetStateProperty.all(Colors.black),
+                                        ),
+                                  onPressed: (_userId == p.id) ? null : () => _challengePlayer(context, p),
+                                )
+                              : IconButton(
+                                  icon: const Icon(Icons.compare_arrows),
+                                  style: (_userId == p.id)
+                                      ? ButtonStyle(
+                                          backgroundColor: WidgetStateProperty.all(
+                                              Theme.of(context).colorScheme.secondaryContainer),
+                                          foregroundColor: WidgetStateProperty.all(Colors.grey),
+                                        )
+                                      : ButtonStyle(
+                                          backgroundColor: WidgetStateProperty.all(Colors.white),
+                                          foregroundColor: WidgetStateProperty.all(Colors.black),
+                                        ),
+                                  onPressed: (_userId == p.id) ? null : () => _challengePlayer(context, p),
+                                ),
                             ],
                           ),
-                        )
-                      );
-                    }).cast<ExpansionPanelRadio>().toList(),
-                  ),
-                ),
+                        ),
+                      ),
+                      const Divider(
+                        color: Colors.white,
+                        thickness: 4,
+                        height: 0,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -304,16 +344,46 @@ class _PlayersViewState extends ConsumerState<PlayersView> {
     return ResponsiveScaffold(
       title: 'Players',
       body: mainContent,
-      barAction: ElevatedButton.icon(
-        style: ButtonStyle(
-          padding: WidgetStateProperty.all(EdgeInsets.all(16)),
-          backgroundColor: WidgetStateProperty.all(Colors.white),
-          foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+      barAction: (isLargeScreen)
+      ? ElevatedButton.icon(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+            backgroundColor: WidgetStateProperty.all(Colors.white),
+            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: () { _instantMatch(context); },
+          icon: const Icon(Icons.compare_arrows),
+          label: const Text('Match', style: TextStyle(fontSize: 16),),
+        )
+      : IconButton(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+            backgroundColor: WidgetStateProperty.all(Colors.white),
+            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: () { _instantMatch(context); },
+          icon: const Icon(Icons.compare_arrows),
         ),
-        onPressed: () { _instantMatch(context); },
-        icon: const Icon(Icons.compare_arrows),
-        label: const Text('Instant Match', style: TextStyle(fontSize: 16),),
-      ),
+      refresh: (isLargeScreen)
+      ? ElevatedButton.icon(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+            backgroundColor: WidgetStateProperty.all(Colors.white),
+            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: () { _resetPlayerList(); },
+          icon: const Icon(Icons.sync),
+          label: const Text('Refresh', style: TextStyle(fontSize: 16),),
+        )
+      : IconButton(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(EdgeInsets.symmetric(vertical: 10, horizontal: 16)),
+            backgroundColor: WidgetStateProperty.all(Colors.white),
+            foregroundColor: WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
+          ),
+          onPressed: () { _resetPlayerList(); },
+          icon: const Icon(Icons.sync),
+        ),
     );
 
     // return Scaffold(

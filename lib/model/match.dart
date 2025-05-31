@@ -8,13 +8,14 @@ class Match {
   final String p2Name;
   int? winnerId;
   int? remaining;
+  int? additional;
   bool? forfeit;
   final String startTime;
   int? daysToWait;
   int? reward;
 
   Match({required this.p1Id, required this.p2Id, required this.p1Name, required this.p2Name, required this.startTime,
-    this.id, this.winnerId, this.forfeit, this.remaining, this.daysToWait, this.reward});
+    this.id, this.winnerId, this.forfeit, this.remaining, this.additional, this.daysToWait, this.reward});
 
   static Match? createFromMap(Map<String, dynamic> matchMap) {
     try {
@@ -25,13 +26,16 @@ class Match {
         p1Name: matchMap['p1_name'],
         p2Name: matchMap['p2_name'],
         startTime: matchMap['start_time'],
-        daysToWait: _daysTillMatch(matchMap['start_time']),
+        daysToWait: daysTillMatch(matchMap['start_time']),
         winnerId: matchMap['winner_id'] == null 
           ? null 
           : StringUtils.parseInt(matchMap['winner_id']),
         remaining: matchMap['remaining'] == null 
           ? null 
           : StringUtils.parseInt(matchMap['remaining']),
+        additional: matchMap['additional'] == null 
+          ? null 
+          : StringUtils.parseInt(matchMap['additional']),
         reward: matchMap['reward'] == null 
           ? null 
           : StringUtils.parseInt(matchMap['reward']),
@@ -46,7 +50,7 @@ class Match {
     }
   }
 
-  static int _daysTillMatch(String dateString) {
+  static int daysTillMatch(String dateString) {
     DateTime date = DateTime.parse(dateString);
     return date.difference(DateTime.now()).inDays;
   }

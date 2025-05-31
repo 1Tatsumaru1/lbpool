@@ -53,4 +53,11 @@ class StringUtils {
     String formattedTime = "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:00Z";
     return "${formattedDate}T$formattedTime";
   }
+
+  /// Check whether a date happened after today at midnight or not
+  static bool isDateAfterMidnight(DateTime date) {
+    DateTime now = DateTime.now();
+    DateTime today = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    return date.compareTo(today) > 0;
+  }
 }

@@ -22,7 +22,7 @@ class MatchScoreView extends ConsumerStatefulWidget {
   ConsumerState<MatchScoreView> createState() => _MatchScoreView();
 }
 
-class _MatchScoreView extends ConsumerState<MatchScoreView> {
+class _MatchScoreView extends ConsumerState<MatchScoreView> with WidgetsBindingObserver {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   late HttpService? _httpService;
   late MatchService _matchService;
@@ -36,13 +36,17 @@ class _MatchScoreView extends ConsumerState<MatchScoreView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     setState(() => _isLoading = true);
-    if (widget.isModification) {
-      ///TODO
-    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _userId = StringUtils.parseInt(await _storage.read(key: 'userId'));
-      _winnerId = widget.match.p1Id;
+      if (widget.isModification) {
+        _winnerId = widget.match.winnerId ?? widget.match.p1Id;
+        _isForfeit = widget.match.forfeit ?? false;
+        _remainingBalls = (widget.match.remaining == null) ? 0 : double.parse(widget.match.remaining.toString());
+      } else {
+        _winnerId = widget.match.p1Id;
+      }
       _httpService = ref.read(httpServiceProvider);
       if (_httpService == null) {
         _httpService = HttpService();
@@ -53,17 +57,31 @@ class _MatchScoreView extends ConsumerState<MatchScoreView> {
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
+    }
+  }
+
   Future<void> _scoreMatch(BuildContext context) async {
     setState(() => _isSaving = true);
     try {
       Map<String, dynamic> result;
       if (widget.isModification) {
-        ///TODO
-        result = {'success': false, 'message': 'Offline', 'content': ''};
+        // result = (!ref.read(connectivityProvider))
+        //   ? {'success': false, 'message': 'Offline', 'content': ''}
+        result = await _matchService.rescoreMatch(widget.match.id!, _winnerId, _isForfeit, 0, _remainingBalls.toInt());
       } else {
-        result = (!ref.read(connectivityProvider))
-          ? {'success': false, 'message': 'Offline', 'content': ''}
-          : await _matchService.recordMatch(widget.match.id!, _winnerId, _isForfeit, 0, _remainingBalls.toInt());
+        // result = (!ref.read(connectivityProvider))
+        //   ? {'success': false, 'message': 'Offline', 'content': ''}
+        result = await _matchService.recordMatch(widget.match.id!, _winnerId, _isForfeit, 0, _remainingBalls.toInt());
       }
       if (!result['success'] && result['redirect'] != null && result['redirect']) {
         if (context.mounted) {
@@ -78,14 +96,23 @@ class _MatchScoreView extends ConsumerState<MatchScoreView> {
       }
       setState(() => _isSaving = false);
       if (context.mounted) {
-        Map<String, dynamic>? elo = result['content'];
-        if (elo == null || elo['added'] == null) {
-          StringUtils.snackMessenger(context, "The match hasn't been scored");
-          return;
+        if (widget.isModification) {
+          Map<String, dynamic>? feedback = result['content'];
+          if (feedback == null || feedback['elo'] == null) {
+            StringUtils.snackMessenger(context, "The match hasn't been modified");
+            return;
+          }
+          Navigator.of(context).pop(feedback);
+        } else {
+          Map<String, dynamic>? elo = result['content'];
+          if (elo == null || elo['added'] == null) {
+            StringUtils.snackMessenger(context, "The match hasn't been scored");
+            return;
+          }
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => MatchResultView(origin: widget.origin, elo: elo, userId: _userId!,))
+          );
         }
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => MatchResultView(origin: widget.origin, elo: elo, userId: _userId!,))
-        );
       }
     } catch (e) {
       if (context.mounted) {

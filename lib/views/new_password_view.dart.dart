@@ -24,7 +24,7 @@ class NewPasswordView extends ConsumerStatefulWidget {
 }
 
 
-class _NewPasswordViewState extends ConsumerState<NewPasswordView> {
+class _NewPasswordViewState extends ConsumerState<NewPasswordView> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final TextEditingController _passwordController = TextEditingController();
@@ -46,8 +46,16 @@ class _NewPasswordViewState extends ConsumerState<NewPasswordView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _passwordFocusNode.addListener(() => setState(() => _showPasswordHelp = _passwordFocusNode.hasFocus));
     _passwordConfirmationFocusNode.addListener(() => setState(() => _showPasswordHelp = _passwordConfirmationFocusNode.hasFocus));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
+    }
   }
 
   /// Toggle the obfuscated password with the one in plain text
@@ -119,9 +127,9 @@ class _NewPasswordViewState extends ConsumerState<NewPasswordView> {
       ref.read(httpServiceProvider.notifier).setHttpService(httpService);
     }
     AuthService authService = AuthService(httpService: httpService);
-    Map<String, dynamic> passwordChangeResult = (!ref.read(connectivityProvider))
-      ? {'success': false, 'message': 'Offline', 'content': ''}
-      : await authService.setNewPassword(widget.identifier, widget.code, _passwordController.text);
+    // Map<String, dynamic> passwordChangeResult = (!ref.read(connectivityProvider))
+    //   ? {'success': false, 'message': 'Offline', 'content': ''}
+    Map<String, dynamic> passwordChangeResult = await authService.setNewPassword(widget.identifier, widget.code, _passwordController.text);
     if (!passwordChangeResult['success'] && passwordChangeResult['redirect'] != null && passwordChangeResult['redirect']) {
       if (context.mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (BuildContext context) => LoginView()));
       return;
@@ -143,6 +151,7 @@ class _NewPasswordViewState extends ConsumerState<NewPasswordView> {
   void dispose() {
     _passwordFocusNode.dispose();
     _passwordConfirmationFocusNode.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 

@@ -22,7 +22,7 @@ class ForgottenPasswordView extends ConsumerStatefulWidget {
 }
 
 
-class _ForgottenPasswordViewState extends ConsumerState<ForgottenPasswordView> {
+class _ForgottenPasswordViewState extends ConsumerState<ForgottenPasswordView> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final TextEditingController _loginController = TextEditingController();
@@ -31,12 +31,26 @@ class _ForgottenPasswordViewState extends ConsumerState<ForgottenPasswordView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       String? login = await _storage.read(key: 'email');
       setState(() {
         _loginController.text = login ?? '';
       });
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
+    }
   }
 
   /// Ask for a password rest code
@@ -60,9 +74,9 @@ class _ForgottenPasswordViewState extends ConsumerState<ForgottenPasswordView> {
       ref.read(httpServiceProvider.notifier).setHttpService(httpService);
     }
     AuthService authService = AuthService(httpService: httpService);
-    Map<String, dynamic> askForCodeResult = (!ref.read(connectivityProvider))
-      ? {'success': false, 'message': 'Offline', 'content': ''}
-      : await authService.forgottenPassword(_loginController.text);
+    // Map<String, dynamic> askForCodeResult = (!ref.read(connectivityProvider))
+    //   ? {'success': false, 'message': 'Offline', 'content': ''}
+    Map<String, dynamic> askForCodeResult = await authService.forgottenPassword(_loginController.text);
     if (!askForCodeResult['success'] && askForCodeResult['redirect'] != null && askForCodeResult['redirect']) {
       if (context.mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (BuildContext context) => LoginView()));
       return;

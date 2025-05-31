@@ -25,7 +25,7 @@ class LoginView extends ConsumerStatefulWidget {
 }
 
 
-class _LoginViewState extends ConsumerState<LoginView> {
+class _LoginViewState extends ConsumerState<LoginView> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final double _cardHeight = 280;
@@ -39,6 +39,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _isLoading = true;
     Future.delayed(const Duration(milliseconds: 300), _initializeLoginForm);
   }
@@ -63,6 +64,19 @@ class _LoginViewState extends ConsumerState<LoginView> {
     setState(() {
       _hasMessageBeenDisplayed = true;
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(connectivityProvider.notifier).refreshConnectionStatus();
+    }
   }
 
   /// Toggle the obfuscated password with the one in plain text
@@ -100,9 +114,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
       ref.read(httpServiceProvider.notifier).setHttpService(httpService);
     }
     AuthService authService = AuthService(httpService: httpService);
-    bool isAuthenticated = (!ref.read(connectivityProvider))
-      ? false 
-      : await authService.login(_loginController.text, _passwordController.text);
+    // bool isAuthenticated = (!ref.read(connectivityProvider))
+    //   ? false 
+    bool isAuthenticated = await authService.login(_loginController.text, _passwordController.text);
     if (!isAuthenticated) {
       if (context.mounted) StringUtils.snackMessenger(context, "Authentication failed");
       setState(() => _isLoading = false);
@@ -212,6 +226,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                                     return null;
                                   },
                                   onSaved: (value) => _loginController.text = sanitizer.convert(value!.trim()),
+                                  onFieldSubmitted: (_) => _authenticate(context),
                                 ),
                               ),
                           
@@ -254,6 +269,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                                     return null;
                                   },
                                   onSaved: (value) => _passwordController.text = sanitizer.convert(value!.trim()),
+                                  onFieldSubmitted: (_) => _authenticate(context),
                                 ),
                               ),
                             ]
